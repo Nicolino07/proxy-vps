@@ -19,3 +19,14 @@ Este repositorio contiene la configuración del proxy inverso global para nuestr
      ┌──────────▼──────────┐   ┌──▼──────────────────┐
      │ Contenedor Pagina 1 │   │ Contenedor Pagina 2 │
      └─────────────────────┘   └─────────────────────┘
+
+## 📂 Estructura del Proyecto
+
+```text
+.
+├── docker-compose.yml     # Orquestación del contenedor de Nginx
+└── config/
+    ├── nginx.conf         # Configuración global del servidor Nginx
+    └── conf.d/            # Configuraciones de enrutamiento por dominio
+        ├── pagina1.conf   # Proxy pass para Página 1 (ej: puerto 3000)
+        └── pagina2.conf   # Proxy pass para Página 2 (ej: puerto 8080)
