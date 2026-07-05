@@ -1,0 +1,13 @@
+# Datos persistentes de Nginx Proxy Manager (NO subir a git)
+data/
+letsencrypt/
+
+# CA de Cloudflare (se descarga en el VPS, ver cloudflare/README.md)
+cloudflare/origin-pull-ca.pem
+
+# Variables de entorno / secretos
+.env
+*.env
+
+# Sistema
+.DS_Store

@@ -1,0 +1,21 @@
+services:
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"            # HTTP  (público, filtrado a Cloudflare por firewall.sh)
+      - "443:443"          # HTTPS (público, filtrado a Cloudflare por firewall.sh)
+      - "127.0.0.1:81:81"  # Panel admin: SOLO localhost. Acceso vía túnel SSH.
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+      # CA de Cloudflare para Authenticated Origin Pulls (mTLS). Ver SECURITY.md
+      - ./cloudflare/origin-pull-ca.pem:/etc/nginx/cloudflare/origin-pull-ca.pem:ro
+    networks:
+      - proxy-network
+
+networks:
+  proxy-network:
+    name: proxy-network
+    driver: bridge
