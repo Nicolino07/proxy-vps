@@ -146,6 +146,30 @@ ssh -L 3001:localhost:3001 usuario@IP_DEL_VPS
   (si deja de responder, dejás de cobrar sin enterarte) y el certificado SSL
   (Kuma avisa si vence en menos de N días).
 
-**Netdata (fase 2, no urgente):** cubre "¿por qué se cayó / qué se está por
-caer?" con métricas de CPU/RAM/disco por contenedor. Se suma después, cuando
-haga falta diagnosticar patrones de uso — no bloquea nada de lo anterior.
+**Netdata** cubre "¿por qué se cayó / qué se está por caer?" con métricas de
+CPU/RAM/disco/red del host y por contenedor. Mismo patrón de acceso que Kuma:
+
+```bash
+ssh -L 19999:localhost:19999 usuario@IP_DEL_VPS
+# abrir http://localhost:19999
+```
+
+**Configurar alertas a Telegram** (usa el mismo bot y chat ID que ya armaste
+para Kuma):
+
+1. Entrar al contenedor: `docker exec -it netdata bash`
+2. Editar `/etc/netdata/health_alarm_notify.conf` (si no existe, copiarlo
+   primero desde `/usr/lib/netdata/conf.d/health_alarm_notify.conf`):
+   ```bash
+   SEND_TELEGRAM="YES"
+   TELEGRAM_BOT_TOKEN="<el mismo token del bot>"
+   DEFAULT_RECIPIENT_TELEGRAM="<el mismo chat_id>"
+   ```
+3. Reiniciar el contenedor: `docker compose restart netdata`
+4. Probar: `docker exec -it netdata /usr/libexec/netdata/plugins.d/alarm-notify.sh test`
+
+Netdata ya trae umbrales por defecto razonables (ej. RAM/disco al 80-90%,
+picos de carga) y detección de anomalías sin que definas nada — con esto
+alcanza para empezar. Ajustar umbrales puntuales se hace en
+`/etc/netdata/health.d/*.conf` si en algún momento las alertas por defecto
+resultan muy sensibles o muy laxas para tu VPS.

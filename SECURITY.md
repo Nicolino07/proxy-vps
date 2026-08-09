@@ -136,6 +136,23 @@ cuando falla la parte pública del sistema.
 **Primer login:** lo pide Kuma al abrir el dashboard por primera vez (no hay
 usuario por defecto). Elegí email/password fuertes ahí mismo.
 
+## 8. Netdata — métricas de recursos, nunca público
+
+Mismo patrón: dashboard atado a `127.0.0.1:19999`, acceso por túnel SSH.
+
+```bash
+ssh -L 19999:localhost:19999 usuario@IP_DEL_VPS
+# luego abrir en el navegador: http://localhost:19999
+```
+
+Monta `/proc`, `/sys` y el socket de Docker **de solo lectura** para poder leer
+métricas del host y de cada contenedor sin poder modificarlos. Los `cap_add`/
+`security_opt` del compose son los que Netdata pide oficialmente para leer
+esas métricas — no le dan privilegios de escritura sobre el host.
+
+Las alertas (RAM/disco/CPU) se configuran dentro del contenedor, en
+`health_alarm_notify.conf`, con el mismo bot de Telegram que ya usa Kuma.
+
 ---
 
 ## ✅ Checklist de verificación
@@ -148,3 +165,4 @@ usuario por defecto). Elegí email/password fuertes ahí mismo.
 - [ ] Firewall se re-aplica tras reboot.
 - [ ] DB accesible por túnel SSH (`localhost:5434`) y **no** desde internet.
 - [ ] Uptime Kuma accesible por túnel SSH (`localhost:3001`) y **no** desde internet.
+- [ ] Netdata accesible por túnel SSH (`localhost:19999`) y **no** desde internet.
