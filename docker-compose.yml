@@ -29,6 +29,7 @@ services:
   netdata:
     image: netdata/netdata:latest
     container_name: netdata
+    hostname: vps-nico-srv1421620
     restart: unless-stopped
     ports:
       - "127.0.0.1:19999:19999"  # Dashboard: SOLO localhost. Acceso vía túnel SSH.
