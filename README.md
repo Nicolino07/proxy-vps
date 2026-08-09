@@ -155,21 +155,56 @@ ssh -L 19999:localhost:19999 usuario@IP_DEL_VPS
 ```
 
 **Configurar alertas a Telegram** (usa el mismo bot y chat ID que ya armaste
-para Kuma):
+para Kuma). Se hace por consola, sin editor interactivo, en un solo comando
+(reemplazando `<TOKEN>` y `<CHAT_ID>` por los tuyos):
 
-1. Entrar al contenedor: `docker exec -it netdata bash`
-2. Editar `/etc/netdata/health_alarm_notify.conf` (si no existe, copiarlo
-   primero desde `/usr/lib/netdata/conf.d/health_alarm_notify.conf`):
-   ```bash
-   SEND_TELEGRAM="YES"
-   TELEGRAM_BOT_TOKEN="<el mismo token del bot>"
-   DEFAULT_RECIPIENT_TELEGRAM="<el mismo chat_id>"
-   ```
-3. Reiniciar el contenedor: `docker compose restart netdata`
-4. Probar: `docker exec -it netdata /usr/libexec/netdata/plugins.d/alarm-notify.sh test`
+```bash
+docker exec netdata bash -c '
+cp -f /usr/lib/netdata/conf.d/health_alarm_notify.conf /etc/netdata/health_alarm_notify.conf
+sed -i "s/^SEND_TELEGRAM=.*/SEND_TELEGRAM=\"YES\"/" /etc/netdata/health_alarm_notify.conf
+sed -i "s|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=\"<TOKEN>\"|" /etc/netdata/health_alarm_notify.conf
+sed -i "s/^DEFAULT_RECIPIENT_TELEGRAM=.*/DEFAULT_RECIPIENT_TELEGRAM=\"<CHAT_ID>\"/" /etc/netdata/health_alarm_notify.conf
+'
+docker compose restart netdata
+docker exec -it netdata /usr/libexec/netdata/plugins.d/alarm-notify.sh test
+```
+
+El `hostname` del servicio en `docker-compose.yml` (ej. `vps-nico-srv1421620`)
+es lo que identifica al servidor dentro del mensaje de Telegram — sin esto,
+la alerta te muestra el ID interno del contenedor, ilegible.
+
+**Ajuste de performance (recomendado):** por defecto Netdata recolecta cada
+1 segundo y corre detección de anomalías por ML sobre cada métrica, lo cual
+en un VPS de 2 cores se notó como ~8-10% de CPU sostenido. Bajarlo a cada 5
+segundos y desactivar el ML lo deja en ~2% sin perder las alertas por umbral
+(RAM/disco/CPU). **Este archivo vive en un volumen de Docker
+(`netdataconfig`), no en el repo — si se recrea el VPS desde cero hay que
+volver a crearlo:**
+
+```bash
+docker exec netdata bash -c 'cat > /etc/netdata/netdata.conf <<EOF
+[global]
+    update every = 5
+
+[ml]
+    enabled = no
+EOF'
+docker compose restart netdata
+```
 
 Netdata ya trae umbrales por defecto razonables (ej. RAM/disco al 80-90%,
-picos de carga) y detección de anomalías sin que definas nada — con esto
-alcanza para empezar. Ajustar umbrales puntuales se hace en
-`/etc/netdata/health.d/*.conf` si en algún momento las alertas por defecto
-resultan muy sensibles o muy laxas para tu VPS.
+picos de carga) sin que definas nada — con esto alcanza para empezar. Ajustar
+umbrales puntuales se hace en `/etc/netdata/health.d/*.conf` si en algún
+momento las alertas por defecto resultan muy sensibles o muy laxas.
+
+### ¿Cuándo te avisa por Telegram?
+
+- **Kuma** (cada 60s, 2 reintentos antes de alertar): si `www.hockeybariloche.com.ar`
+  o `www.asociacionaustraldehockey.com.ar` dejan de responder, o si el
+  certificado SSL de alguno está por vencer.
+- **Netdata**: RAM o disco por arriba de ~80-90%, carga de CPU sostenida
+  anormal, y otros chequeos de sistema por defecto (swap, inodos, etc.).
+- Cada alerta llega en 3 etapas — **warning → critical → recovered** — así
+  sabés cuándo empezó el problema y cuándo se resolvió solo.
+- **Pendiente:** cuando se integre el sistema de pagos, sumar un monitor de
+  Kuma específico para el endpoint del webhook de Mercado Pago.
