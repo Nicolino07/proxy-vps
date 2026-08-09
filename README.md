@@ -24,26 +24,31 @@ extremo a extremo (**Full strict** + **Authenticated Origin Pulls**).
               └─────────┬──────────┘
                         │
              red docker: proxy-network
-                 ┌──────┴──────┐
-                 │             │
-          ┌────────────┐ ┌────────────┐
-          │  Página A  │ │  Página B  │
-          └────────────┘ └────────────┘
+                 ┌──────┼──────────────┐
+                 │      │              │
+          ┌────────────┐ ┌────────────┐ ┌────────────┐
+          │  Página A  │ │  Página B  │ │Uptime Kuma │  ← Dashboard en :3001
+          └────────────┘ └────────────┘ └────────────┘
 ```
+
+`Página A/B` y **Uptime Kuma** están al mismo nivel: el proxy no distingue
+entre "una app" y "el monitor", ambos son contenedores en `proxy-network`.
+Kuma solo se diferencia en que su puerto no pasa por Cloudflare (ver abajo).
 
 ## 📂 Estructura del Proyecto
 
 ```text
 .
-├── docker-compose.yml   # Orquestación de Nginx Proxy Manager
+├── docker-compose.yml   # Orquestación de Nginx Proxy Manager + Uptime Kuma
 ├── SECURITY.md          # Guía de hardening (SSL, mTLS, firewall)
 ├── scripts/
 │   └── firewall.sh      # Allowlist de Cloudflare (ufw + DOCKER-USER)
 ├── cloudflare/
 │   └── README.md        # Cómo obtener la CA de Authenticated Origin Pulls
-├── .gitignore           # Ignora data/, letsencrypt/, la CA y secretos
+├── .gitignore           # Ignora data/, letsencrypt/, uptime-kuma-data/, la CA y secretos
 ├── data/                # (generado) Configuración y BD de NPM — NO se versiona
-└── letsencrypt/         # (generado) Certificados SSL — NO se versiona
+├── letsencrypt/         # (generado) Certificados SSL — NO se versiona
+└── uptime-kuma-data/    # (generado) Configuración y BD de Uptime Kuma — NO se versiona
 ```
 
 > La red `proxy-network` la crea este compose. Cada aplicación se conecta a ella
@@ -104,3 +109,43 @@ Luego, en el panel de NPM → **Hosts → Proxy Hosts → Add Proxy Host**:
 El SSL del origen se resuelve con un **Cloudflare Origin Certificate** +
 **Authenticated Origin Pulls (mTLS)**, no con Let's Encrypt. El procedimiento
 completo (borde, certificado, mTLS y firewall) está en [`SECURITY.md`](SECURITY.md).
+
+## 📈 Monitoreo — Uptime Kuma
+
+`docker-compose.yml` levanta **Uptime Kuma** junto a NPM. Es "¿está vivo o
+no?" con alertas — el acceso al dashboard sigue el mismo patrón de seguridad
+que el panel de NPM: atado a `127.0.0.1:3001`, nunca público, se accede por
+túnel SSH (ver [`SECURITY.md`](SECURITY.md#7-uptime-kuma--monitoreo-nunca-público)).
+
+**Primera vez:**
+
+```bash
+docker compose up -d
+ssh -L 3001:localhost:3001 usuario@IP_DEL_VPS
+# abrir http://localhost:3001 y crear el usuario admin
+```
+
+**Configurar alertas a Telegram** (Settings → Notifications → Setup Notification):
+
+1. Hablar con [@BotFather](https://t.me/BotFather) en Telegram → `/newbot` → copiar el token.
+2. Escribirle cualquier mensaje al bot recién creado (para que pueda responderte).
+3. Obtener tu `chat_id`: abrir
+   `https://api.telegram.org/bot<TOKEN>/getUpdates` y buscar el campo `chat.id`.
+4. En Kuma: tipo *Telegram*, pegar el bot token y el chat ID, **Save**.
+5. Marcarla como notificación por defecto para que se aplique a los monitores nuevos.
+
+**Qué monitorear (mínimo):**
+
+- Cada dominio público (Página A, Página B, y a futuro el sitio de pagos), como
+  monitor tipo *HTTP(s)* apuntando al dominio público (valida también que
+  Cloudflare + NPM + mTLS estén sirviendo bien de punta a punta).
+- El endpoint de health-check de cada app por su nombre de contenedor interno
+  (ej. `http://mi-app:3000/health`) — detecta caídas aunque Cloudflare siga
+  respondiendo con una página de error.
+- El día que esté el sistema de pagos: el **endpoint del webhook** específicamente
+  (si deja de responder, dejás de cobrar sin enterarte) y el certificado SSL
+  (Kuma avisa si vence en menos de N días).
+
+**Netdata (fase 2, no urgente):** cubre "¿por qué se cayó / qué se está por
+caer?" con métricas de CPU/RAM/disco por contenedor. Se suma después, cuando
+haga falta diagnosticar patrones de uso — no bloquea nada de lo anterior.

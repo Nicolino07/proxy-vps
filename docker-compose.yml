@@ -15,6 +15,17 @@ services:
     networks:
       - proxy-network
 
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"  # Dashboard: SOLO localhost. Acceso vía túnel SSH.
+    volumes:
+      - ./uptime-kuma-data:/app/data
+    networks:
+      - proxy-network
+
 networks:
   proxy-network:
     name: proxy-network

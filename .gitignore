@@ -2,6 +2,9 @@
 data/
 letsencrypt/
 
+# Datos persistentes de Uptime Kuma (NO subir a git)
+uptime-kuma-data/
+
 # CA de Cloudflare (se descarga en el VPS, ver cloudflare/README.md)
 cloudflare/origin-pull-ca.pem
 

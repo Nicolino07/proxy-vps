@@ -118,6 +118,24 @@ pgAdmin → Host `localhost`, Port `5434`, credenciales del `.env`. El puerto 54
 no se expone a internet y el firewall no necesita abrirlo (el tráfico viaja
 dentro de la conexión SSH). ⚠️ Nunca cambiar el binding a `0.0.0.0:5434`.
 
+## 7. Uptime Kuma — monitoreo, nunca público
+
+Igual que el panel de NPM: el dashboard queda atado a `127.0.0.1:3001` y se
+accede por túnel SSH, no por Cloudflare/NPM.
+
+```bash
+ssh -L 3001:localhost:3001 usuario@IP_DEL_VPS
+# luego abrir en el navegador: http://localhost:3001
+```
+
+Al estar en `proxy-network`, Kuma puede monitorear a los demás contenedores
+por su nombre (ej. `http://mi-app:3000/health`) sin depender de que Cloudflare
+o el DNS público estén arriba — importante para no perder la alerta justo
+cuando falla la parte pública del sistema.
+
+**Primer login:** lo pide Kuma al abrir el dashboard por primera vez (no hay
+usuario por defecto). Elegí email/password fuertes ahí mismo.
+
 ---
 
 ## ✅ Checklist de verificación
@@ -129,3 +147,4 @@ dentro de la conexión SSH). ⚠️ Nunca cambiar el binding a `0.0.0.0:5434`.
 - [ ] `sudo iptables -L DOCKER-USER -n` muestra la allowlist de Cloudflare.
 - [ ] Firewall se re-aplica tras reboot.
 - [ ] DB accesible por túnel SSH (`localhost:5434`) y **no** desde internet.
+- [ ] Uptime Kuma accesible por túnel SSH (`localhost:3001`) y **no** desde internet.
